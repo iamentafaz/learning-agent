@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: personal-learning-agent
+Version: 0.1.0
+Summary: A daily, adaptive learning email for English, Class 10 maths, and brain-stimulating reading.
+Requires-Python: >=3.12
+Requires-Dist: openai>=2.0.0
+Requires-Dist: pydantic>=2.10.0
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: SQLAlchemy>=2.0.0

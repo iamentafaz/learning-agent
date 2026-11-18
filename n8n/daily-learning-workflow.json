@@ -1,0 +1,149 @@
+{
+  "name": "Daily Learning Agent with RSS",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 20,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "9c53e13d-3bf5-4ec9-bc96-f3ac4b276c2a",
+      "name": "Daily at 8 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.sciencedaily.com/rss/top/science.xml",
+        "options": {}
+      },
+      "id": "d2ac1d9d-4312-4165-b387-31ade7159c2c",
+      "name": "Learning Topics RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [460, 180]
+    },
+    {
+      "parameters": {
+        "url": "https://www.merriam-webster.com/wotd/feed/rss2",
+        "options": {}
+      },
+      "id": "5d9ec1ad-07fd-4bec-8105-d8f2ae0a1055",
+      "name": "Vocabulary RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [460, 420]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "b04b9daf-6005-4bd4-9d8e-022a17f39f5b",
+      "name": "Wait for both feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const normalize = (items) => items.slice(0, 12).map(({ json }) => ({\n  title: String(json.title ?? ''),\n  summary: String(json.contentSnippet ?? json.description ?? json.content ?? '').slice(0, 3000),\n  url: String(json.link ?? '')\n}));\nreturn [{ json: {\n  topic_articles: normalize($('Learning Topics RSS').all()),\n  vocabulary_articles: normalize($('Vocabulary RSS').all())\n} }];"
+      },
+      "id": "3d54e23c-6390-4bb9-82c1-eb646f22703d",
+      "name": "Prepare RSS for Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8766/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_LEARNING_AGENT_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "id": "63146a98-b705-4aaf-b572-d5755994f7ec",
+      "name": "Generate Lesson",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "YOUR_SENDER_EMAIL",
+        "toEmail": "YOUR_RECIPIENT_EMAIL",
+        "subject": "={{ $json.subject_line }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "9d1e78f8-31bb-4d97-b92c-4a23e855f31b",
+      "name": "Email Daily Lesson",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Daily at 8 PM": {
+      "main": [
+        [
+          { "node": "Learning Topics RSS", "type": "main", "index": 0 },
+          { "node": "Vocabulary RSS", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Learning Topics RSS": {
+      "main": [[{ "node": "Wait for both feeds", "type": "main", "index": 0 }]]
+    },
+    "Vocabulary RSS": {
+      "main": [[{ "node": "Wait for both feeds", "type": "main", "index": 1 }]]
+    },
+    "Wait for both feeds": {
+      "main": [[{ "node": "Prepare RSS for Agent", "type": "main", "index": 0 }]]
+    },
+    "Prepare RSS for Agent": {
+      "main": [[{ "node": "Generate Lesson", "type": "main", "index": 0 }]]
+    },
+    "Generate Lesson": {
+      "main": [[{ "node": "Email Daily Lesson", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Kolkata",
+    "executionOrder": "v1"
+  },
+  "versionId": "0fd6d0c9-5d8c-4981-9e47-6e084d2307d2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
